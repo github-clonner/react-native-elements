@@ -1,19 +1,35 @@
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
-import {
-  Dimensions,
-  StyleSheet,
-  View,
-  ActivityIndicator,
-  Text,
-} from 'react-native';
-import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
 
-import ViewPropTypes from '../config/ViewPropTypes';
+import { ViewPropTypes } from '../config';
+import { nodeType, renderNode } from '../helpers';
+
 import Input from '../input/Input';
+import Icon from '../icons/Icon';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const ANDROID_GRAY = 'rgba(0, 0, 0, 0.54)';
+
+const defaultSearchIcon = {
+  type: 'material',
+  size: 25,
+  color: ANDROID_GRAY,
+  name: 'search',
+};
+
+const defaultCancelIcon = {
+  type: 'material',
+  size: 25,
+  color: ANDROID_GRAY,
+  name: 'arrow-back',
+};
+
+const defaultClearIcon = {
+  type: 'material',
+  size: 25,
+  color: ANDROID_GRAY,
+  name: 'clear',
+};
 
 class SearchBar extends Component {
   focus = () => {
@@ -27,7 +43,7 @@ class SearchBar extends Component {
   clear = () => {
     this.input.clear();
     this.onChangeText('');
-    this.props.onClearText();
+    this.props.onClear();
   };
 
   cancel = () => {
@@ -37,7 +53,10 @@ class SearchBar extends Component {
 
   onFocus = () => {
     this.props.onFocus();
-    this.setState({ hasFocus: true });
+    this.setState({
+      hasFocus: true,
+      isEmpty: this.props.value === '',
+    });
   };
 
   onBlur = () => {
@@ -52,9 +71,10 @@ class SearchBar extends Component {
 
   constructor(props) {
     super(props);
+    const { value } = props;
     this.state = {
       hasFocus: false,
-      isEmpty: true,
+      isEmpty: value ? value === '' : true,
     };
   }
 
@@ -62,66 +82,70 @@ class SearchBar extends Component {
     const {
       clearIcon,
       containerStyle,
-      leftIcon,
       leftIconContainerStyle,
       rightIconContainerStyle,
+      inputContainerStyle,
       inputStyle,
-      noIcon,
+      searchIcon,
+      cancelIcon,
       showLoading,
       loadingProps,
       ...attributes
     } = this.props;
     const { hasFocus, isEmpty } = this.state;
     const { style: loadingStyle, ...otherLoadingProps } = loadingProps;
-    const searchIcon = (
-      <MaterialIcon
-        size={25}
-        color={ANDROID_GRAY}
-        name={hasFocus ? 'arrow-left' : 'magnify'}
-        onPress={hasFocus ? this.cancel : null}
-      />
-    );
+
     return (
-      <View style={styles.container}>
+      <View style={StyleSheet.flatten([styles.container, containerStyle])}>
         <Input
+          testID="searchInput"
+          renderErrorMessage={false}
           {...attributes}
           onFocus={this.onFocus}
           onBlur={this.onBlur}
           onChangeText={this.onChangeText}
-          ref={input => (this.input = input)}
-          inputStyle={[styles.input, inputStyle]}
-          containerStyle={[styles.inputContainer, containerStyle]}
-          leftIcon={noIcon ? undefined : leftIcon ? leftIcon : searchIcon}
-          leftIconContainerStyle={[
+          ref={input => {
+            this.input = input;
+          }}
+          containerStyle={{ paddingHorizontal: 0 }}
+          inputStyle={StyleSheet.flatten([styles.input, inputStyle])}
+          inputContainerStyle={StyleSheet.flatten([
+            styles.inputContainer,
+            inputContainerStyle,
+          ])}
+          leftIcon={
+            hasFocus
+              ? renderNode(Icon, cancelIcon, {
+                  ...defaultCancelIcon,
+                  onPress: this.cancel,
+                })
+              : renderNode(Icon, searchIcon, defaultSearchIcon)
+          }
+          leftIconContainerStyle={StyleSheet.flatten([
             styles.leftIconContainerStyle,
             leftIconContainerStyle,
-          ]}
+          ])}
           rightIcon={
             <View style={{ flexDirection: 'row' }}>
               {showLoading && (
                 <ActivityIndicator
-                  style={[
-                    clearIcon && !isEmpty && { marginRight: 10 },
-                    loadingStyle,
-                  ]}
+                  key="loading"
+                  style={StyleSheet.flatten([{ marginRight: 5 }, loadingStyle])}
                   {...otherLoadingProps}
                 />
               )}
-              {clearIcon &&
-                !isEmpty && (
-                  <MaterialIcon
-                    name={'close'}
-                    size={25}
-                    color={ANDROID_GRAY}
-                    onPress={() => this.clear()}
-                  />
-                )}
+              {!isEmpty &&
+                renderNode(Icon, clearIcon, {
+                  ...defaultClearIcon,
+                  key: 'cancel',
+                  onPress: this.clear,
+                })}
             </View>
           }
-          rightIconContainerStyle={[
+          rightIconContainerStyle={StyleSheet.flatten([
             styles.rightIconContainerStyle,
             rightIconContainerStyle,
-          ]}
+          ])}
         />
       </View>
     );
@@ -129,16 +153,18 @@ class SearchBar extends Component {
 }
 
 SearchBar.propTypes = {
-  clearIcon: PropTypes.bool,
+  value: PropTypes.string,
+  clearIcon: nodeType,
+  searchIcon: nodeType,
+  cancelIcon: nodeType,
   loadingProps: PropTypes.object,
-  noIcon: PropTypes.bool,
   showLoading: PropTypes.bool,
   containerStyle: ViewPropTypes.style,
-  leftIcon: PropTypes.object,
   leftIconContainerStyle: ViewPropTypes.style,
   rightIconContainerStyle: ViewPropTypes.style,
+  inputContainerStyle: ViewPropTypes.style,
   inputStyle: Text.propTypes.style,
-  onClearText: PropTypes.func,
+  onClear: PropTypes.func,
   onCancel: PropTypes.func,
   onFocus: PropTypes.func,
   onBlur: PropTypes.func,
@@ -146,32 +172,32 @@ SearchBar.propTypes = {
 };
 
 SearchBar.defaultProps = {
-  clearIcon: true,
+  value: '',
   loadingProps: {},
-  noIcon: false,
   showLoading: false,
-  onClearText: () => null,
+  onClear: () => null,
   onCancel: () => null,
   onFocus: () => null,
   onBlur: () => null,
   onChangeText: () => null,
+  searchIcon: defaultSearchIcon,
+  clearIcon: defaultClearIcon,
+  cancelIcon: defaultCancelIcon,
 };
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
-    width: SCREEN_WIDTH,
     paddingTop: 8,
     paddingBottom: 8,
   },
   input: {
-    flex: 1,
     marginLeft: 24,
     marginRight: 8,
   },
   inputContainer: {
     borderBottomWidth: 0,
-    width: SCREEN_WIDTH,
+    width: '100%',
   },
   rightIconContainerStyle: {
     marginRight: 8,

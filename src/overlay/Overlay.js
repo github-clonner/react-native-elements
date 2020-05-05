@@ -1,101 +1,107 @@
-import PropTypes from 'prop-types';
 import React from 'react';
+import PropTypes from 'prop-types';
 import {
   View,
   StyleSheet,
-  Dimensions,
   Platform,
-  ViewPropTypes as RNViewPropTypes,
+  TouchableWithoutFeedback,
+  Modal,
 } from 'react-native';
 
-const dimensions = Dimensions.get('window');
-const windowWidth = dimensions.width;
-const windowHeight = dimensions.height;
+import { ViewPropTypes, withTheme } from '../config';
 
-const ViewPropTypes = RNViewPropTypes || View.propTypes;
-
-const Overlay = props => {
-  const {
-    children,
-    isVisible,
-    containerStyle,
-    overlayStyle,
-    windowBackgroundColor,
-    overlayBackgroundColor,
-    borderRadius = parseInt(borderRadius) || 3,
-    width,
-    height,
-    fullScreen,
-    ...rest
-  } = props;
-  if (!isVisible) return null;
-  return (
-    <View
-      style={[
-        styles.container,
-        windowBackgroundColor && { backgroundColor: windowBackgroundColor },
-        containerStyle,
-      ]}
-      {...rest}
+const Overlay = ({
+  children,
+  backdropStyle,
+  overlayStyle,
+  onBackdropPress,
+  fullScreen,
+  ModalComponent,
+  isVisible,
+  ...rest
+}) => (
+  <ModalComponent
+    visible={isVisible}
+    onRequestClose={onBackdropPress}
+    transparent
+    {...rest}
+  >
+    <TouchableWithoutFeedback
+      onPress={onBackdropPress}
+      testID="RNE__Overlay__backdrop"
     >
       <View
-        style={[
+        testID="backdrop"
+        style={StyleSheet.flatten([styles.backdrop, backdropStyle])}
+      />
+    </TouchableWithoutFeedback>
+
+    <View style={styles.container} pointerEvents="box-none">
+      <View
+        style={StyleSheet.flatten([
           styles.overlay,
-          { borderRadius },
-          overlayBackgroundColor && { backgroundColor: overlayBackgroundColor },
-          width && { width },
-          height && { height },
-          fullScreen && { width: windowWidth, height: windowHeight },
+          fullScreen && styles.fullscreen,
           overlayStyle,
-        ]}
+        ])}
       >
         {children}
       </View>
     </View>
-  );
-};
+  </ModalComponent>
+);
 
 Overlay.propTypes = {
-  children: PropTypes.any.isRequired,
+  children: PropTypes.element.isRequired,
   isVisible: PropTypes.bool.isRequired,
-  containerStyle: ViewPropTypes.style,
+  backdropStyle: ViewPropTypes.style,
   overlayStyle: ViewPropTypes.style,
-  windowBackgroundColor: PropTypes.string,
-  overlayBackgroundColor: PropTypes.string,
-  borderRadius: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  width: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  height: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onBackdropPress: PropTypes.func,
   fullScreen: PropTypes.bool,
+  ModalComponent: PropTypes.elementType,
+};
+
+Overlay.defaultProps = {
+  fullScreen: false,
+  onBackdropPress: () => null,
+  ModalComponent: Modal,
 };
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: windowWidth,
-    height: windowHeight,
-    backgroundColor: 'rgba(0, 0, 0, .4)',
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, .4)',
+  },
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullscreen: {
+    width: '100%',
+    height: '100%',
   },
   overlay: {
-    borderRadius: 5,
-    width: windowWidth - 80,
-    height: windowHeight - 180,
     backgroundColor: 'white',
+    borderRadius: 3,
     padding: 10,
     ...Platform.select({
-      ios: {
+      android: {
+        elevation: 2,
+      },
+      default: {
         shadowColor: 'rgba(0, 0, 0, .3)',
         shadowOffset: { width: 0, height: 1 },
         shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
       },
     }),
   },
 });
 
-export default Overlay;
+export { Overlay };
+export default withTheme(Overlay, 'Overlay');

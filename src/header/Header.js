@@ -1,106 +1,194 @@
-import React from 'react';
+import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { StatusBar, StyleSheet, View } from 'react-native';
-import isEmpty from 'lodash.isempty';
-import DummyNavButton from './DummyNavButton';
-import NavButton from './NavButton';
-import Title from './Title';
-import ViewPropTypes from '../config/ViewPropTypes';
-import colors from '../config/colors';
+import {
+  Platform,
+  StatusBar,
+  StyleSheet,
+  View,
+  ImageBackground,
+  Image,
+} from 'react-native';
 
-function generateChild(value, type) {
-  if (React.isValidElement(value)) {
-    return <View key={type}>{value}</View>;
-  } else if (typeof value === 'object' && !isEmpty(value)) {
-    return type === 'center' ? (
-      <Title {...value} key={type} />
-    ) : (
-      <NavButton {...value} key={type} />
-    );
+import { ViewPropTypes, getStatusBarHeight, withTheme } from '../config';
+import { renderNode, nodeType } from '../helpers';
+
+import Text from '../text/Text';
+import Icon from '../icons/Icon';
+
+const ALIGN_STYLE = {
+  left: 'flex-start',
+  right: 'flex-end',
+  center: 'center',
+};
+
+const Children = ({ style, placement, children }) => (
+  <View
+    style={StyleSheet.flatten([{ alignItems: ALIGN_STYLE[placement] }, style])}
+  >
+    {children == null || children === false
+      ? null
+      : children.text
+      ? renderNode(Text, children.text, { numberOfLines: 1, ...children })
+      : children.icon
+      ? renderNode(Icon, {
+          ...children,
+          name: children.icon,
+          containerStyle: StyleSheet.flatten([
+            { alignItems: ALIGN_STYLE[placement] },
+            children.containerStyle,
+          ]),
+        })
+      : renderNode(Text, children)}
+  </View>
+);
+
+Children.propTypes = {
+  placement: PropTypes.oneOf(['left', 'center', 'right']),
+  style: ViewPropTypes.style,
+  children: PropTypes.oneOfType([nodeType, PropTypes.node]),
+};
+
+class Header extends Component {
+  componentDidMount() {
+    const { linearGradientProps, ViewComponent } = this.props;
+    if (linearGradientProps && !global.Expo && !ViewComponent) {
+      console.error(
+        "You need to pass a ViewComponent to use linearGradientProps !\nExample: ViewComponent={require('react-native-linear-gradient')}"
+      );
+    }
   }
-  return type === 'center' ? null : <DummyNavButton key={type} />;
-}
 
-function populateChildren(propChildren) {
-  const childrenArray = [];
-
-  const leftComponent = generateChild(propChildren.leftComponent, 'left');
-  const centerComponent = generateChild(propChildren.centerComponent, 'center');
-  const rightComponent = generateChild(propChildren.rightComponent, 'right');
-
-  childrenArray.push(leftComponent, centerComponent, rightComponent);
-
-  return childrenArray;
-}
-
-const Header = props => {
-  const {
-    children,
-    statusBarProps,
-    leftComponent,
-    centerComponent,
-    rightComponent,
-    backgroundColor,
-    outerContainerStyles,
-    innerContainerStyles,
-    ...attributes
-  } = props;
-
-  let propChildren = [];
-
-  if (leftComponent || centerComponent || rightComponent) {
-    propChildren = populateChildren({
+  render() {
+    const {
+      statusBarProps,
       leftComponent,
       centerComponent,
       rightComponent,
-    });
-  }
+      leftContainerStyle,
+      centerContainerStyle,
+      rightContainerStyle,
+      backgroundColor,
+      backgroundImage,
+      backgroundImageStyle,
+      containerStyle,
+      placement,
+      barStyle,
+      children,
+      linearGradientProps,
+      ViewComponent = linearGradientProps && global.Expo
+        ? global.Expo.LinearGradient
+        : ImageBackground,
+      theme,
+      ...attributes
+    } = this.props;
 
-  return (
-    <View
-      {...attributes}
-      style={[
-        styles.outerContainer,
-        backgroundColor && { backgroundColor },
-        outerContainerStyles,
-      ]}
-    >
-      <StatusBar {...statusBarProps} />
-      <View style={[styles.innerContainer, innerContainerStyles]}>
-        {propChildren.length > 0 ? propChildren : children}
-      </View>
-    </View>
-  );
-};
+    return (
+      <ViewComponent
+        testID="headerContainer"
+        {...attributes}
+        style={StyleSheet.flatten([
+          styles.container(theme),
+          backgroundColor && { backgroundColor },
+          containerStyle,
+        ])}
+        source={backgroundImage}
+        imageStyle={backgroundImageStyle}
+        {...linearGradientProps}
+      >
+        <StatusBar barStyle={barStyle} {...statusBarProps} />
+        <Children
+          style={StyleSheet.flatten([
+            placement === 'center' && styles.rightLeftContainer,
+            leftContainerStyle,
+          ])}
+          placement="left"
+        >
+          {(React.isValidElement(children) && children) ||
+            children[0] ||
+            leftComponent}
+        </Children>
+
+        <Children
+          style={StyleSheet.flatten([
+            styles.centerContainer,
+            placement !== 'center' && {
+              paddingHorizontal: Platform.select({
+                android: 16,
+                default: 15,
+              }),
+            },
+            centerContainerStyle,
+          ])}
+          placement={placement}
+        >
+          {children[1] || centerComponent}
+        </Children>
+
+        <Children
+          style={StyleSheet.flatten([
+            placement === 'center' && styles.rightLeftContainer,
+            rightContainerStyle,
+          ])}
+          placement="right"
+        >
+          {children[2] || rightComponent}
+        </Children>
+      </ViewComponent>
+    );
+  }
+}
 
 Header.propTypes = {
-  leftComponent: PropTypes.object,
-  centerComponent: PropTypes.object,
-  rightComponent: PropTypes.object,
+  placement: PropTypes.oneOf(['left', 'center', 'right']),
+  leftComponent: nodeType,
+  centerComponent: nodeType,
+  rightComponent: nodeType,
+  leftContainerStyle: ViewPropTypes.style,
+  centerContainerStyle: ViewPropTypes.style,
+  rightContainerStyle: ViewPropTypes.style,
   backgroundColor: PropTypes.string,
-  outerContainerStyles: ViewPropTypes.style,
-  innerContainerStyles: ViewPropTypes.style,
-  children: PropTypes.oneOfType([
-    PropTypes.element,
-    PropTypes.arrayOf(PropTypes.element),
-  ]),
+  backgroundImage: Image.propTypes.source,
+  backgroundImageStyle: Image.propTypes.style,
+  containerStyle: ViewPropTypes.style,
   statusBarProps: PropTypes.object,
+  barStyle: PropTypes.oneOf(['default', 'light-content', 'dark-content']),
+  children: PropTypes.oneOfType([
+    PropTypes.arrayOf(PropTypes.node),
+    PropTypes.node,
+  ]),
+  theme: PropTypes.object,
+  linearGradientProps: PropTypes.object,
+  ViewComponent: PropTypes.elementType,
 };
 
-const styles = StyleSheet.create({
-  innerContainer: {
-    flex: 1,
+Header.defaultProps = {
+  placement: 'center',
+  children: [],
+};
+
+const styles = {
+  container: theme => ({
+    borderBottomColor: '#f2f2f2',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    backgroundColor: theme.colors.primary,
+    paddingTop: getStatusBarHeight(),
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    height:
+      Platform.select({
+        android: 56,
+        default: 44,
+      }) + getStatusBarHeight(),
+  }),
+  centerContainer: {
+    flex: 3,
   },
-  outerContainer: {
-    backgroundColor: colors.primary,
-    borderBottomColor: '#f2f2f2',
-    borderBottomWidth: 1,
-    padding: 15,
-    height: 70,
+  rightLeftContainer: {
+    flex: 1,
   },
-});
+};
 
-export default Header;
+export { Header };
+export default withTheme(Header, 'Header');

@@ -7,8 +7,10 @@ import FoundationIcon from 'react-native-vector-icons/Foundation';
 import EvilIcon from 'react-native-vector-icons/EvilIcons';
 import EntypoIcon from 'react-native-vector-icons/Entypo';
 import FAIcon from 'react-native-vector-icons/FontAwesome';
+import FA5Icon from 'react-native-vector-icons/FontAwesome5';
 import SimpleLineIcon from 'react-native-vector-icons/SimpleLineIcons';
 import FeatherIcon from 'react-native-vector-icons/Feather';
+import AntIcon from 'react-native-vector-icons/AntDesign';
 
 const customIcons = {};
 
@@ -36,12 +38,16 @@ export default type => {
       return EntypoIcon;
     case 'font-awesome':
       return FAIcon;
+    case 'font-awesome-5':
+      return FA5Icon;
     case 'simple-line-icon':
       return SimpleLineIcon;
     case 'feather':
       return FeatherIcon;
+    case 'antdesign':
+      return AntIcon;
     default:
-      if (customIcons.hasOwnProperty(type)) {
+      if (Object.prototype.hasOwnProperty.call(customIcons, type)) {
         return customIcons[type];
       }
       return MaterialIcon;
